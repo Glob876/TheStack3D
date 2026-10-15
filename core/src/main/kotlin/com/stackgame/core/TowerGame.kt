@@ -24,6 +24,7 @@ import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.MathUtils
+import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.viewport.FitViewport
@@ -82,6 +83,7 @@ class TowerGame : ApplicationAdapter() {
     private var guideCharacters = 0f
     private var guideSway = 0f
     private var guideReturn = Screen.MENU
+    private var introTime = 0f
 
     override fun create() {
         prefs = Gdx.app.getPreferences("StackGameAndroidRecords")
@@ -209,7 +211,15 @@ class TowerGame : ApplicationAdapter() {
 
     override fun render() {
         val dt = Gdx.graphics.deltaTime.coerceAtMost(0.05f)
-        if (Gdx.input.isKeyJustPressed(Input.Keys.BACK) || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+        val introActive = introTime < 3.4f
+        if (introActive) introTime = (introTime + dt).coerceAtMost(3.4f)
+        // Consume startup taps so they cannot activate a button behind the fade.
+        val tapped = Gdx.input.justTouched()
+        if (introTime < 2.4f) {
+            drawIntro()
+            return
+        }
+        if (!introActive && (Gdx.input.isKeyJustPressed(Input.Keys.BACK) || Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE))) {
             screen = when (screen) {
                 Screen.LANGUAGE -> Screen.LANGUAGE
                 Screen.SETTINGS -> { selectedLanguage = language; Screen.MENU }
@@ -220,7 +230,7 @@ class TowerGame : ApplicationAdapter() {
                 else -> Screen.MENU
             }
         }
-        if (Gdx.input.justTouched()) {
+        if (!introActive && tapped) {
             touch.set(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
             ui.unproject(touch)
             if (touch.x in 0f..480f && touch.y in 0f..800f) handleTap(touch.x, touch.y)
@@ -399,6 +409,39 @@ class TowerGame : ApplicationAdapter() {
             }
         }
         batch.end()
+        if (introActive) {
+            // Cover the whole window, including FitViewport's letterbox bars.
+            Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+            shapes.projectionMatrix = shapes.projectionMatrix.setToOrtho2D(
+                0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+            shapes.begin(ShapeRenderer.ShapeType.Filled)
+            shapes.setColor(0f, 0f, 0f, 1f - Interpolation.smooth.apply((introTime - 2.4f).coerceIn(0f, 1f)))
+            shapes.rect(0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+            shapes.end()
+        }
+    }
+
+    private fun drawIntro() {
+        Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        ui.apply()
+        val alpha = when {
+            introTime < 0.8f -> Interpolation.smooth.apply(introTime / 0.8f)
+            introTime < 1.6f -> 1f
+            else -> 1f - Interpolation.smooth.apply(((introTime - 1.6f) / 0.8f).coerceIn(0f, 1f))
+        }
+        font.data.setScale(1.8f)
+        font.setColor(1f, 1f, 1f, alpha)
+        layout.setText(font, "made by Glob876 :D")
+        batch.projectionMatrix = ui.camera.combined
+        batch.begin()
+        font.draw(batch, layout, (480f - layout.width) / 2f, (800f + layout.height) / 2f)
+        batch.end()
+        font.color = Color.WHITE
     }
 
     private fun handleTap(x: Float, y: Float) {

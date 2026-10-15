@@ -20,6 +20,10 @@ Requires Android 6.0 or newer. Includes ARM64, ARMv7 and x86_64 natives.
 Set your SDK path in the ignored `local.properties` (`sdk.dir=...`) or `ANDROID_HOME`.
 Build requires JDK 21; game bytecode targets Java 17.
 
+On Android startup, `made by Glob876 :D` fades in on black, stays briefly,
+and fades out before the initial screen fades in. The intro lasts 3.4 seconds
+and ignores taps until it finishes; returning from the background does not replay it.
+
 Tap PLAY, then tap the screen to place each block. Precise placement preserves its
 size; overhangs are cut away; missing the tower ends the run. Use the pause button
 or Android Back to pause. Returning from the background keeps the game paused.
